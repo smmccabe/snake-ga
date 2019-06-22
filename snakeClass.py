@@ -177,7 +177,7 @@ def run():
     agent = DQNAgent()
     counter_games = 0
     score_plot = []
-    counter_plot =[]
+    counter_plot = []
     record = 0
     while counter_games < 500:
         # Initialize classes

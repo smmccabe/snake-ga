@@ -27,12 +27,12 @@ class DQNAgent(object):
         state = [0] * 400
 
         index = int(player.x + ((player.y - 40) * 20)) / 20
-        if index < 0 | index > 399:
+        if index >= 0 or index > 399:
             print(index)
         state[index] = 1
 
         index = (food.x_food + ((food.y_food - 40) * 20)) / 20
-        if index < 0 | index > 399:
+        if index < 0 or index > 399:
             print(index)
         state[index] = 2
 
@@ -40,7 +40,7 @@ class DQNAgent(object):
             for i in range(1, player.food):
                 tail_index = len(player.position) - 1 - i
                 index = int(player.position[tail_index][0] + ((player.position[tail_index][1] - 40) * 20)) / 20
-                if index < 0 | index > 399:
+                if index < 0 or index > 399:
                     print(index)
                 state[index] = 3
 
