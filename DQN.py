@@ -5,7 +5,7 @@ import random
 import numpy as np
 import pandas as pd
 from operator import add
-
+import sys
 
 class DQNAgent(object):
 
@@ -18,50 +18,36 @@ class DQNAgent(object):
         self.agent_predict = 0
         self.learning_rate = 0.0005
         self.model = self.network()
-        #self.model = self.network("weights.hdf5")
+        # self.model = self.network("weights.hdf5")
         self.epsilon = 0
         self.actual = []
         self.memory = []
 
     def get_state(self, game, player, food):
+        state = [0] * 400
 
-        state = [
-            (player.x_change == 20 and player.y_change == 0 and ((list(map(add, player.position[-1], [20, 0])) in player.position) or
-            player.position[-1][0] + 20 >= (game.game_width - 20))) or (player.x_change == -20 and player.y_change == 0 and ((list(map(add, player.position[-1], [-20, 0])) in player.position) or
-            player.position[-1][0] - 20 < 20)) or (player.x_change == 0 and player.y_change == -20 and ((list(map(add, player.position[-1], [0, -20])) in player.position) or
-            player.position[-1][-1] - 20 < 20)) or (player.x_change == 0 and player.y_change == 20 and ((list(map(add, player.position[-1], [0, 20])) in player.position) or
-            player.position[-1][-1] + 20 >= (game.game_height-20))),  # danger straight
+        index = int(player.x + ((player.y - 40) * 20)) / 20
+        if index < 0 | index > 399:
+            print(index)
+        state[index] = 1
 
-            (player.x_change == 0 and player.y_change == -20 and ((list(map(add,player.position[-1],[20, 0])) in player.position) or
-            player.position[ -1][0] + 20 > (game.game_width-20))) or (player.x_change == 0 and player.y_change == 20 and ((list(map(add,player.position[-1],
-            [-20,0])) in player.position) or player.position[-1][0] - 20 < 20)) or (player.x_change == -20 and player.y_change == 0 and ((list(map(
-            add,player.position[-1],[0,-20])) in player.position) or player.position[-1][-1] - 20 < 20)) or (player.x_change == 20 and player.y_change == 0 and (
-            (list(map(add,player.position[-1],[0,20])) in player.position) or player.position[-1][
-             -1] + 20 >= (game.game_height-20))),  # danger right
+        index = (food.x_food + ((food.y_food - 40) * 20)) / 20
+        if index < 0 | index > 399:
+            print(index)
+        state[index] = 2
 
-             (player.x_change == 0 and player.y_change == 20 and ((list(map(add,player.position[-1],[20,0])) in player.position) or
-             player.position[-1][0] + 20 > (game.game_width-20))) or (player.x_change == 0 and player.y_change == -20 and ((list(map(
-             add, player.position[-1],[-20,0])) in player.position) or player.position[-1][0] - 20 < 20)) or (player.x_change == 20 and player.y_change == 0 and (
-            (list(map(add,player.position[-1],[0,-20])) in player.position) or player.position[-1][-1] - 20 < 20)) or (
-            player.x_change == -20 and player.y_change == 0 and ((list(map(add,player.position[-1],[0,20])) in player.position) or
-            player.position[-1][-1] + 20 >= (game.game_height-20))), #danger left
+        if player.food > 1:
+            for i in range(1, player.food):
+                tail_index = len(player.position) - 1 - i
+                index = int(player.position[tail_index][0] + ((player.position[tail_index][1] - 40) * 20)) / 20
+                if index < 0 | index > 399:
+                    print(index)
+                state[index] = 3
 
-
-            player.x_change == -20,  # move left
-            player.x_change == 20,  # move right
-            player.y_change == -20,  # move up
-            player.y_change == 20,  # move down
-            food.x_food < player.x,  # food left
-            food.x_food > player.x,  # food right
-            food.y_food < player.y,  # food up
-            food.y_food > player.y  # food down
-            ]
-
-        for i in range(len(state)):
-            if state[i]:
-                state[i]=1
-            else:
-                state[i]=0
+        #for i in range(len(state)):
+        #    sys.stdout.write(str(state[i]))
+        #    if i % 20 == 0:
+        #        sys.stdout.write("\n")
 
         return np.asarray(state)
 
@@ -71,18 +57,18 @@ class DQNAgent(object):
             self.reward = -10
             return self.reward
         if player.eaten:
-            self.reward = 10
+            self.reward = 10 - (player.turns * 0.01)
         return self.reward
 
     def network(self, weights=None):
         model = Sequential()
-        model.add(Dense(output_dim=120, activation='relu', input_dim=11))
+        model.add(Dense(units=120, activation='relu', input_dim=400))
         model.add(Dropout(0.15))
-        model.add(Dense(output_dim=120, activation='relu'))
+        model.add(Dense(units=120, activation='relu'))
         model.add(Dropout(0.15))
-        model.add(Dense(output_dim=120, activation='relu'))
+        model.add(Dense(units=120, activation='relu'))
         model.add(Dropout(0.15))
-        model.add(Dense(output_dim=3, activation='softmax'))
+        model.add(Dense(units=3, activation='softmax'))
         opt = Adam(self.learning_rate)
         model.compile(loss='mse', optimizer=opt)
 
@@ -109,7 +95,7 @@ class DQNAgent(object):
     def train_short_memory(self, state, action, reward, next_state, done):
         target = reward
         if not done:
-            target = reward + self.gamma * np.amax(self.model.predict(next_state.reshape((1, 11)))[0])
-        target_f = self.model.predict(state.reshape((1, 11)))
+            target = reward + self.gamma * np.amax(self.model.predict(next_state.reshape((1, 400)))[0])
+        target_f = self.model.predict(state.reshape((1, 400)))
         target_f[0][np.argmax(action)] = target
-        self.model.fit(state.reshape((1, 11)), target_f, epochs=1, verbose=0)
+        self.model.fit(state.reshape((1, 400)), target_f, epochs=1, verbose=0)
