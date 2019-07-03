@@ -22,8 +22,9 @@ class Game:
         self.display_width = game_width + 40
         self.game_height = game_height
         self.display_height = game_height + 40
-        self.gameDisplay = pygame.display.set_mode(
-            (self.display_width, self.display_height + 60))
+        if display_option:
+            self.gameDisplay = pygame.display.set_mode(
+                (self.display_width, self.display_height + 60))
         self.crash = False
         self.player = Player(self)
         self.food = Food(self)
@@ -203,7 +204,7 @@ def run():
                 final_move = to_categorical(randint(0, 2), num_classes=3)
             else:
                 # predict action based on the old state
-                prediction = agent.model.predict(state_old.reshape((1,size)))
+                prediction = agent.model.predict(state_old.reshape((1, agent.size)))
                 final_move = to_categorical(np.argmax(prediction[0]), num_classes=3)
 
             #perform new move and get new state
