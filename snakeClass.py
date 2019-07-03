@@ -10,20 +10,23 @@ import numpy as np
 # Set options to activate or deactivate the game view, and its speed
 display_option = True
 speed = 0
+size = 200
+games = 500
 pygame.font.init()
-
 
 class Game:
 
     def __init__(self, game_width, game_height):
         pygame.display.set_caption('SnakeGen')
         self.game_width = game_width
+        self.display_width = game_width + 40
         self.game_height = game_height
-        self.gameDisplay = pygame.display.set_mode((game_width, game_height+60))
-        self.bg = pygame.image.load("img/background.png")
+        self.display_height = game_height + 40
+        self.gameDisplay = pygame.display.set_mode(
+            (self.display_width, self.display_height + 60))
         self.crash = False
         self.player = Player(self)
-        self.food = Food()
+        self.food = Food(self)
         self.score = 0
 
 
@@ -74,7 +77,7 @@ class Player(object):
         self.x = x + self.x_change
         self.y = y + self.y_change
 
-        if self.x < 20 or self.x > game.game_width-40 or self.y < 20 or self.y > game.game_height-40 or [self.x, self.y] in self.position:
+        if self.x < 20 or self.x > game.game_width or self.y < 20 or self.y > game.game_height or [self.x, self.y] in self.position:
             game.crash = True
         eat(self, food, game)
 
@@ -97,15 +100,15 @@ class Player(object):
 
 class Food(object):
 
-    def __init__(self):
-        self.x_food = 240
-        self.y_food = 200
+    def __init__(self, game):
+        self.x_food = (game.game_width / 2) + 20
+        self.y_food = game.game_height/ 2
         self.image = pygame.image.load('img/food2.png')
 
     def food_coord(self, game, player):
-        x_rand = randint(20, game.game_width - 40)
+        x_rand = randint(20, game.game_width)
         self.x_food = x_rand - x_rand % 20
-        y_rand = randint(20, game.game_height - 40)
+        y_rand = randint(20, game.game_height)
         self.y_food = y_rand - y_rand % 20
         if [self.x_food, self.y_food] not in player.position:
             return self.x_food, self.y_food
@@ -136,14 +139,13 @@ def display_ui(game, score, record):
     myfont_bold = pygame.font.SysFont('Segoe UI', 20, True)
     text_score = myfont.render('SCORE: ', True, (0, 0, 0))
     text_score_number = myfont.render(str(score), True, (0, 0, 0))
-    text_highest = myfont.render('HIGHEST SCORE: ', True, (0, 0, 0))
+    text_highest = myfont.render('HIGH SCORE: ', True, (0, 0, 0))
     text_highest_number = myfont_bold.render(str(record), True, (0, 0, 0))
-    game.gameDisplay.blit(text_score, (45, 440))
-    game.gameDisplay.blit(text_score_number, (120, 440))
-    game.gameDisplay.blit(text_highest, (190, 440))
-    game.gameDisplay.blit(text_highest_number, (350, 440))
-    game.gameDisplay.blit(game.bg, (10, 10))
-
+    game.gameDisplay.blit(text_score, (25, game.display_height))
+    game.gameDisplay.blit(text_score_number, (120, game.display_height))
+    game.gameDisplay.blit(text_highest, (25, game.display_height + 20))
+    game.gameDisplay.blit(text_highest_number, (120, game.display_height + 20))
+    pygame.draw.rect(game.gameDisplay, (0, 255, 0), pygame.Rect(15,15, game.display_width - 30, game.display_height - 30), 10)
 
 def display(player, food, game, record):
     game.gameDisplay.fill((255, 255, 255))
@@ -157,7 +159,7 @@ def update_screen():
 
 
 def initialize_game(player, game, food, agent):
-    state_init1 = agent.get_state(game, player, food)  # [0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0]
+    state_init1 = agent.get_state(game, player, food)
     action = [1, 0, 0]
     player.do_move(action, player.x, player.y, game, food, agent)
     state_init2 = agent.get_state(game, player, food)
@@ -173,15 +175,14 @@ def plot_seaborn(array_counter, array_score):
     plt.show()
 
 def run():
-    pygame.init()
-    agent = DQNAgent()
+    agent = DQNAgent(size)
     counter_games = 0
     score_plot = []
     counter_plot = []
     record = 0
-    while counter_games < 500:
+    while counter_games < games:
         # Initialize classes
-        game = Game(440, 440)
+        game = Game(size, size)
         player1 = game.player
         food1 = game.food
 
@@ -192,24 +193,24 @@ def run():
 
         while not game.crash:
             #agent.epsilon is set to give randomness to actions
-            agent.epsilon = 80 - counter_games
+            agent.epsilon = (games * 0.4) - counter_games
 
             #get old state
             state_old = agent.get_state(game, player1, food1)
 
             #perform random actions based on agent.epsilon, or choose the action
-            if randint(0, 200) < agent.epsilon:
+            if randint(0, games) < agent.epsilon:
                 final_move = to_categorical(randint(0, 2), num_classes=3)
             else:
                 # predict action based on the old state
-                prediction = agent.model.predict(state_old.reshape((1,400)))
+                prediction = agent.model.predict(state_old.reshape((1,size)))
                 final_move = to_categorical(np.argmax(prediction[0]), num_classes=3)
 
             #perform new move and get new state
             player1.do_move(final_move, player1.x, player1.y, game, food1, agent)
             state_new = agent.get_state(game, player1, food1)
 
-            #set treward for the new state
+            #set reward for the new state
             reward = agent.set_reward(player1, game.crash)
 
             #train short memory base on the new action and state
@@ -224,11 +225,11 @@ def run():
 
         agent.replay_new(agent.memory)
         counter_games += 1
-        print('Game', counter_games, '      Score:', game.score)
         score_plot.append(game.score)
         counter_plot.append(counter_games)
+        print('Game', counter_games, ' Score:', game.score, 'Last 10 Avg:', np.mean(score_plot[-10:]))
+
     agent.model.save_weights('weights.hdf5')
     plot_seaborn(counter_plot, score_plot)
-
 
 run()

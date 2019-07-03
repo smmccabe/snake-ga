@@ -6,46 +6,51 @@ import numpy as np
 import pandas as pd
 from operator import add
 import sys
+import subprocess as sp
 
 class DQNAgent(object):
 
-    def __init__(self):
+    def __init__(self, size):
         self.reward = 0
         self.gamma = 0.9
         self.dataframe = pd.DataFrame()
         self.short_memory = np.array([])
         self.agent_target = 1
         self.agent_predict = 0
-        self.learning_rate = 0.0005
-        self.model = self.network()
-        # self.model = self.network("weights.hdf5")
+        #self.learning_rate = 0.0005
+        self.learning_rate = 0.01
+        self.size = size
         self.epsilon = 0
         self.actual = []
         self.memory = []
+        #self.model = self.network()
+        self.model = self.network("weights.hdf5")
 
     def get_state(self, game, player, food):
-        state = [0] * 400
+        state = [0] * self.size
 
-        index = int(player.x + ((player.y - 40) * 20)) / 20
-        if index >= 0 or index > 399:
-            print(index)
-        state[index] = 1
+        index = int((player.x / 20) + player.y)
+        if index >= 0 and index < self.size:
+            #print(index)
+            state[index] = 1
 
-        index = (food.x_food + ((food.y_food - 40) * 20)) / 20
-        if index < 0 or index > 399:
-            print(index)
-        state[index] = 2
+        index = int((food.x_food / 20) + food.y_food)
+        if index >= 0 and index < self.size:
+            #print(index)
+            state[index] = 2
 
         if player.food > 1:
             for i in range(1, player.food):
                 tail_index = len(player.position) - 1 - i
-                index = int(player.position[tail_index][0] + ((player.position[tail_index][1] - 40) * 20)) / 20
-                if index < 0 or index > 399:
-                    print(index)
-                state[index] = 3
+                index = int((player.position[tail_index][0] / 20) + player.position[tail_index][1])
+                if index >= 0 and index < self.size:
+                    #print(index)
+                    state[index] = 3
 
+        #sp.call('clear', shell=True)
         #for i in range(len(state)):
         #    sys.stdout.write(str(state[i]))
+        #    sys.stdout.write(" ")
         #    if i % 20 == 0:
         #        sys.stdout.write("\n")
 
@@ -56,17 +61,13 @@ class DQNAgent(object):
         if crash:
             self.reward = -10
             return self.reward
-        if player.eaten:
-            self.reward = 10 - (player.turns * 0.01)
         return self.reward
 
     def network(self, weights=None):
         model = Sequential()
-        model.add(Dense(units=120, activation='relu', input_dim=400))
+        model.add(Dense(units=self.size, activation='relu', input_dim=self.size))
         model.add(Dropout(0.15))
-        model.add(Dense(units=120, activation='relu'))
-        model.add(Dropout(0.15))
-        model.add(Dense(units=120, activation='relu'))
+        model.add(Dense(units=self.size / 2, activation='relu'))
         model.add(Dropout(0.15))
         model.add(Dense(units=3, activation='softmax'))
         opt = Adam(self.learning_rate)
@@ -95,7 +96,10 @@ class DQNAgent(object):
     def train_short_memory(self, state, action, reward, next_state, done):
         target = reward
         if not done:
-            target = reward + self.gamma * np.amax(self.model.predict(next_state.reshape((1, 400)))[0])
-        target_f = self.model.predict(state.reshape((1, 400)))
+            target = reward + self.gamma * \
+                np.amax(self.model.predict(
+                    next_state.reshape((1, self.size)))[0])
+        target_f = self.model.predict(state.reshape((1, self.size)))
         target_f[0][np.argmax(action)] = target
-        self.model.fit(state.reshape((1, 400)), target_f, epochs=1, verbose=0)
+        self.model.fit(state.reshape((1, self.size)),
+                       target_f, epochs=1, verbose=0)
