@@ -18,8 +18,7 @@ class DQNAgent(object):
         self.short_memory = np.array([])
         self.agent_target = 1
         self.agent_predict = 0
-        #self.learning_rate = 0.0005
-        self.learning_rate = 0.01
+        self.learning_rate = 0.0005
         self.size = int(math.pow(size / 20, 2))
         self.epsilon = 0
         self.actual = []
@@ -67,7 +66,9 @@ class DQNAgent(object):
         model = Sequential()
         model.add(Dense(units=self.size, activation='relu', input_dim=self.size))
         model.add(Dropout(0.15))
-        model.add(Dense(units=int(self.size / 2), activation='relu'))
+        model.add(Dense(units=self.size, activation='relu'))
+        model.add(Dropout(0.15))
+        model.add(Dense(units=self.size, activation='relu'))
         model.add(Dropout(0.15))
         model.add(Dense(units=3, activation='softmax'))
         opt = Adam(self.learning_rate)
