@@ -27,7 +27,7 @@ class Game:
                 (self.display_width, self.display_height + 60))
         self.crash = False
         self.player = Player(self)
-        self.food = Food(self)
+        self.food = Food(self, self.player)
         self.score = 0
 
 
@@ -101,9 +101,8 @@ class Player(object):
 
 class Food(object):
 
-    def __init__(self, game):
-        self.x_food = (game.game_width / 2) + 20
-        self.y_food = game.game_height/ 2
+    def __init__(self, game, player):
+        self.food_coord(game, player)
         self.image = pygame.image.load('img/food2.png')
 
     def food_coord(self, game, player):
